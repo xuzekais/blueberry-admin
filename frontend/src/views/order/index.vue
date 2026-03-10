@@ -15,6 +15,7 @@
           搜索
         </el-button>
         <el-button type="success" :icon="Plus" @click="openImportDialog" style="margin-left: 10px;">导入订单</el-button>
+        <el-button type="warning" :icon="Download" @click="handleExport" style="margin-left: 10px;">导出订单</el-button>
       </div>
 
       <!-- 数据表格 -->
@@ -58,6 +59,38 @@
         <el-table-column label="详细地址" prop="address" align="center" min-width="150" show-overflow-tooltip />
         <el-table-column label="托寄物" prop="item_desc" align="center" width="120" />
         <el-table-column label="物流产品" prop="shipping_method" align="center" width="120" />
+        <el-table-column label="订单金额" prop="total_price" align="center" width="100">
+          <template #default="{ row }">
+            {{ row.total_price != null ? '¥ ' + row.total_price : '-' }}
+          </template>
+        </el-table-column>
+        <el-table-column label="下单时间" prop="order_time" align="center" width="160">
+          <template #default="{ row }">
+            <span>{{ row.order_time ? new Date(row.order_time).toLocaleString() : "-" }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="预计成本" prop="estimated_cost" align="center" width="100">
+          <template #default="{ row }">
+            {{ row.estimated_cost != null ? '¥ ' + row.estimated_cost : '-' }}
+          </template>
+        </el-table-column>
+        <el-table-column label="预计运费" prop="estimated_freight" align="center" width="100">
+          <template #default="{ row }">
+            {{ row.estimated_freight != null ? '¥ ' + row.estimated_freight : '-' }}
+          </template>
+        </el-table-column>
+        <el-table-column label="预计盈利" prop="estimated_profit" align="center" width="100">
+          <template #default="{ row }">
+            <span :style="{ color: row.estimated_profit > 0 ? '#67C23A' : '#F56C6C' }">
+              {{ row.estimated_profit != null ? '¥ ' + row.estimated_profit : '-' }}
+            </span>
+          </template>
+        </el-table-column>
+        <el-table-column label="渠道" prop="channel" align="center" width="120">
+          <template #default="{ row }">
+            <el-tag type="info">{{ row.channel === 'miniprogram' ? '小程序' : row.channel || '-' }}</el-tag>
+          </template>
+        </el-table-column>
         <el-table-column label="状态" class-name="status-col" width="100">
           <template #default="{ row }">
             <el-tag :type="statusFilter(row.status)">
@@ -100,6 +133,28 @@
       </div>
     </el-card>
 
+    <!-- 导出订单对话框 -->
+    <el-dialog title="导出订单" v-model="exportDialogVisible" width="400px">
+      <el-form label-width="100px">
+        <el-form-item label="订单时间范围">
+          <el-date-picker
+            v-model="exportDateRange"
+            type="datetimerange"
+            range-separator="至"
+            start-placeholder="开始时间"
+            end-placeholder="结束时间"
+            value-format="YYYY-MM-DD HH:mm:ss"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="exportDialogVisible = false">取消</el-button>
+          <el-button type="primary" :loading="exporting" @click="submitExport">导出 Excel</el-button>
+        </div>
+      </template>
+    </el-dialog>
+
     <!-- 导入订单对话框 -->
     <el-dialog title="导入订单" v-model="importDialogVisible" width="500px">
       <el-form label-width="100px">
@@ -140,7 +195,7 @@
     </el-dialog>
 
     <!-- 添加或修改对话框 -->
-    <el-dialog :title="textMap[dialogStatus]" v-model="dialogFormVisible">
+    <el-dialog :title="textMap[dialogStatus as keyof typeof textMap]" v-model="dialogFormVisible">
       <el-form
         ref="dataFormRef"
         :rules="rules"
@@ -164,6 +219,9 @@
         <el-form-item label="物流产品" prop="shipping_method">
           <el-input v-model="temp.shipping_method" />
         </el-form-item>
+        <el-form-item label="订单金额" prop="total_price">
+          <el-input-number v-model="temp.total_price" :precision="2" :step="0.1" />
+        </el-form-item>
         <el-form-item label="订单状态" prop="status">
           <el-select v-model="temp.status" class="filter-item" placeholder="请选择">
             <el-option v-for="item in statusOptions" :key="item.key" :label="item.label" :value="item.key" />
@@ -182,7 +240,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
-import { Plus, Search } from '@element-plus/icons-vue'
+import { Plus, Search, Download } from '@element-plus/icons-vue'
 import { ElMessage, FormInstance, UploadInstance, UploadProps, UploadRawFile } from 'element-plus'
 import { fetchOrderList, createOrder, updateOrder, deleteOrder, OrderQuery, OrderModel } from '../../api/order'
 
@@ -254,6 +312,47 @@ const statusFilter = (status: string) => {
 const statusLabel = (status: string) => {
   const item = statusOptions.find(o => o.key === status)
   return item ? item.label : status
+}
+
+// 导出相关状态与方法
+const exportDialogVisible = ref(false)
+const exportDateRange = ref<[string, string] | []>([])
+const exporting = ref(false)
+
+const handleExport = () => {
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000)
+
+  const startDate = new Date(yesterday.getTime() + 16 * 60 * 60 * 1000) // 昨天 16:00:00
+  const endDate = new Date(today.getTime() + 12 * 60 * 60 * 1000) // 今天 12:00:00
+
+  const format = (d: Date) => {
+    const pad = (n: number) => n.toString().padStart(2, '0')
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+  }
+
+  exportDateRange.value = [format(startDate), format(endDate)]
+  exportDialogVisible.value = true
+}
+
+const submitExport = async () => {
+  if (!exportDateRange.value || exportDateRange.value.length !== 2) {
+    ElMessage.warning('请选择导出时间范围')
+    return
+  }
+  
+  exporting.value = true
+  const [startDate, endDate] = exportDateRange.value
+  try {
+    const url = `/api/orders/export/download?startTime=${startDate}&endTime=${endDate}`
+    window.open(url, '_blank')
+    exportDialogVisible.value = false
+  } catch (error: any) {
+    ElMessage.error(error.message || '导出失败')
+  } finally {
+    exporting.value = false
+  }
 }
 
 // 导入相关状态与方法

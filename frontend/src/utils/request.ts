@@ -3,7 +3,7 @@ import { ElMessage } from 'element-plus';
 
 // 创建 axios 实例
 const service = axios.create({
-  baseURL: import.meta.env.VITE_APP_BASE_API || 'http://localhost:3100/api', // 这里使用后端运行的默认端口
+  baseURL: import.meta.env.VITE_APP_BASE_API || '/api',
   timeout: 10000,
 });
 

@@ -97,6 +97,7 @@ async function parseMiniProgramOrders(buffer) {
                 receiver_phone: rowData['顾客电话'] || '',
                 receiver_address: address,                    
                 item_name: productName,                       
+                total_price: parseFloat(rowData['订单金额（元）'] || rowData['实际支付金额'] || rowData['订单金额'] || rowData['小计'] || '0') || 0,
                 
                 // 判断物流产品
                 express_product: isGuangdong ? '陆运包裹' : '顺丰特快',

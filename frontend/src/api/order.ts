@@ -22,6 +22,7 @@ export interface OrderModel {
   address: string;
   item_desc?: string;
   shipping_method?: string;
+  total_price?: number;
   status: 'pending' | 'shipped' | 'completed' | 'cancelled';
 }
 
