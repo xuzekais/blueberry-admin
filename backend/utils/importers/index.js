@@ -1,7 +1,9 @@
 const miniProgramImporter = require('./miniProgramImporter');
+const wechatShopImporter = require('./wechatShopImporter');
 
 const importStrategies = {
     'miniprogram': miniProgramImporter.parseMiniProgramOrders,
+    'wechat_shop': wechatShopImporter.parseWechatShopOrders,
     // future expandability for 'jd', 'pdd', 'douyin' etc.
 };
 
