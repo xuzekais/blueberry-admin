@@ -88,7 +88,7 @@
         </el-table-column>
         <el-table-column label="渠道" prop="channel" align="center" width="120">
           <template #default="{ row }">
-            <el-tag type="info">{{ row.channel === 'miniprogram' ? '小程序' : row.channel || '-' }}</el-tag>
+            <el-tag type="info">{{ row.channel === 'miniprogram' ? '小程序' : row.channel === 'wechat_shop' ? '微信小店' : row.channel || '-' }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="状态" class-name="status-col" width="100">
@@ -377,10 +377,7 @@ const handleExceed: UploadProps['onExceed'] = (files) => {
 }
 
 const submitImport = () => {
-  if (importMethod.value === 'wechat_shop' || importMethod.value === 'default') {
-    ElMessage.warning('该导入方式暂未实现，目前仅支持开启了小程序导入调试！')
-    return
-  }
+  // 支持所有导入类型，包括微信小店
   importing.value = true
   uploadRef.value!.submit()
 }
