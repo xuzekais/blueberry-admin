@@ -34,7 +34,7 @@ const getEnumById = async (req, res) => {
         const [rows] = await db.query('SELECT * FROM enums WHERE id = ?', [id]);
         
         if (rows.length === 0) {
-            return res.status(404).json({ code: 500, message: '该枚举不存在' });
+            return res.status(404).json({ code: 404, message: '该枚举不存在' });
         }
         
         res.json({ code: 200, data: rows[0] });
@@ -80,7 +80,7 @@ const updateEnum = async (req, res) => {
         // 根据 id 检查存在
         const [current] = await db.query('SELECT * FROM enums WHERE id = ?', [id]);
         if (current.length === 0) {
-            return res.status(404).json({ code: 500, message: '未找到该条记录' });
+            return res.status(404).json({ code: 404, message: '未找到该条记录' });
         }
 
         const newCategory = category || current[0].category;
@@ -124,7 +124,7 @@ const deleteEnum = async (req, res) => {
         const [result] = await db.query('DELETE FROM enums WHERE id = ?', [id]);
         
         if (result.affectedRows === 0) {
-            return res.status(404).json({ code: 500, message: '要删除的枚举没找到' });
+            return res.status(404).json({ code: 404, message: '要删除的枚举没找到' });
         }
 
         res.json({ code: 200, message: '删除成功' });
